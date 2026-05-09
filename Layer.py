@@ -1,6 +1,6 @@
 import numpy as np
 
-# Activations 
+# Activations
 
 def sigmoid(z):
     return 1 / (1 + np.exp(-np.clip(z, -500, 500)))
@@ -25,81 +25,63 @@ ACTIVATIONS = {
 
 class Layer:
     """
-    A single fully-connected layer.
+    Fully-connected layer.
 
-    Shapes (batch_size = m):
-      input  X  : (m, n_in)
-      weights W  : (n_out, n_in)   — one row per output neuron
-      bias    b  : (1, n_out)      — broadcast across batch
-      output  A  : (m, n_out)
+    Shapes (m = batch size):
+      X  : (m, n_in)
+      W  : (n_out, n_in)
+      b  : (1,    n_out)
+      A  : (m,    n_out)
     """
 
     def __init__(self, n_in, n_out, activation='sigmoid'):
         if activation not in ACTIVATIONS:
-            raise ValueError(f"Unknown activation '{activation}'. Choose from {list(ACTIVATIONS)}")
+            raise ValueError(f"Unknown activation '{activation}'. "
+                             f"Choose from {list(ACTIVATIONS)}")
 
         self.n_in  = n_in
         self.n_out = n_out
         self.act, self.act_d = ACTIVATIONS[activation]
 
-        # Glorot uniform — keeps variance stable regardless of layer size
-        limit      = np.sqrt(6 / (n_in + n_out))
-        self.W     = np.random.uniform(-limit, limit, (n_out, n_in))
-        self.b     = np.zeros((1, n_out))
+        # Glorot uniform initialisation
+        limit  = np.sqrt(6 / (n_in + n_out))
+        self.W = np.random.uniform(-limit, limit, (n_out, n_in))
+        self.b = np.zeros((1, n_out))
 
-        # Forward cache — populated during forward(), consumed during backward()
-        self._X = None   # input received
-        self._Z = None   # pre-activation
+        # Forward cache
+        self._X = None
+        self._Z = None
 
-        # Gradient accumulators — set during backward(), read by the network
+        # Gradients (written by backward, read by optimiser)
         self.dW = None
         self.db = None
 
-    # Forward pass
+    # Forward
 
     def forward(self, X):
-        """
-        X : (m, n_in)
-        Returns A : (m, n_out)
-
-        Z = X @ W.T + b   →   each row is one sample's pre-activations
-        A = act(Z)
-        """
         self._X = X
-        self._Z = X @ self.W.T + self.b   # (m, n_out)
-        return self.act(self._Z)           # (m, n_out)
+        self._Z = X @ self.W.T + self.b
+        return self.act(self._Z)
 
-    # Backward pass
+    # Backward
 
     def backward(self, dL_dA):
+        m        = self._X.shape[0]
+        dL_dZ    = dL_dA * self.act_d(self._Z)        # (m, n_out)
+        self.dW  = dL_dZ.T @ self._X / m              # (n_out, n_in)
+        self.db  = dL_dZ.mean(axis=0, keepdims=True)  # (1, n_out)
+        return dL_dZ @ self.W                          # (m, n_in)
+
+    # Update
+
+    def update(self, optimizer):
         """
-        dL_dA : (m, n_out)  — gradient of loss w.r.t. this layer's output,
-                               passed down from the layer above (or from the loss).
-
-        Returns dL_dX : (m, n_in)  — gradient to pass to the layer below.
-
-        Chain rule:
-          dL/dZ = dL/dA * act'(Z)          element-wise   (m, n_out)
-          dL/dW = dL/dZ.T @ X  / m         average over batch   (n_out, n_in)
-          dL/db = mean(dL/dZ, axis=0)      average over batch   (1, n_out)
-          dL/dX = dL/dZ @ W                pass back to prev layer (m, n_in)
+        The layer no longer knows about learning rates or momentum.
+        It hands its parameters and gradients to the optimiser,
+        which returns the updated values.
         """
-        m = self._X.shape[0]                   # batch size
-
-        dL_dZ = dL_dA * self.act_d(self._Z)    # (m, n_out)
-
-        # Average gradients across the batch before storing
-        self.dW = dL_dZ.T @ self._X / m        # (n_out, n_in)
-        self.db = dL_dZ.mean(axis=0, keepdims=True)  # (1, n_out)
-
-        return dL_dZ @ self.W                   # (m, n_in)
-
-    # Weight update
-
-    def update(self, lr):
-        """Gradient descent step. Called after backward()."""
-        self.W -= lr * self.dW
-        self.b -= lr * self.db
+        self.W = optimizer.step(self.W, self.dW)
+        self.b = optimizer.step(self.b, self.db)
 
     def __repr__(self):
         act_name = next(k for k, v in ACTIVATIONS.items() if v[0] is self.act)
