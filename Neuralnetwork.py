@@ -1,7 +1,7 @@
 import numpy as np
 from Layer import Layer
 
-# ── Loss functions ─────────────────────────────────────────────────────────────
+# Loss functions 
 
 def binary_cross_entropy(A, y):
     """
@@ -14,7 +14,7 @@ def binary_cross_entropy(A, y):
     grad = -(y / A) + (1 - y) / (1 - A)          # dL/dA, shape (m,1)
     return loss, grad / A.shape[0]                # normalise by batch size
 
-# ── Network ───────────────────────────────────────────────────────────────────
+# Network 
 
 class NeuralNetwork:
     """
@@ -32,7 +32,7 @@ class NeuralNetwork:
     def __init__(self, layers: list[Layer]):
         self.layers = layers
 
-    # ── Forward ───────────────────────────────────────────────────────────────
+    # Forward 
 
     def forward(self, X):
         """Pass X through every layer in sequence."""
@@ -41,7 +41,7 @@ class NeuralNetwork:
             A = layer.forward(A)
         return A                   # final output, shape (m, n_out_last)
 
-    # ── Backward ──────────────────────────────────────────────────────────────
+    # Backward 
 
     def backward(self, grad):
         """
@@ -51,13 +51,13 @@ class NeuralNetwork:
         for layer in reversed(self.layers):
             grad = layer.backward(grad)
 
-    # ── Update ────────────────────────────────────────────────────────────────
+    # Update 
 
     def update(self, lr):
         for layer in self.layers:
             layer.update(lr)
 
-    # ── Training loop ─────────────────────────────────────────────────────────
+    # Training loop 
 
     def train(self, X, y, epochs=1000, lr=0.1, batch_size=32, print_every=100):
         """
@@ -121,7 +121,7 @@ class NeuralNetwork:
         return "\n".join(lines)
 
 
-# ── Demo ──────────────────────────────────────────────────────────────────────
+# Demo
 
 if __name__ == "__main__":
     np.random.seed(42)
