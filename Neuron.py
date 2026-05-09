@@ -11,15 +11,18 @@ class Neuron:
     def __init__(self, weights, bias):
         self.weights = np.array(weights, dtype=float)
         self.bias = float(bias)
-        # Stored during forward pass, needed for backprop
-        self.last_z = None
+
+        # Cached values from the last forward pass — needed for backprop
         self.last_input = None
+        self.last_z = None
+        self.last_a = None
 
     def feedforward(self, inputs):
-        self.last_input = np.array(inputs, dtype=float)
+        self.last_input = inputs
         self.last_z = np.dot(self.weights, inputs) + self.bias
-        return sigmoid(self.last_z)
+        self.last_a = sigmoid(self.last_z)
+        return self.last_a
 
-    def update(self, dL_dw, dL_db, lr):
-        self.weights -= lr * dL_dw
-        self.bias    -= lr * dL_db
+    def apply_gradients(self, dL_dw, dL_db, learning_rate):
+        self.weights -= learning_rate * dL_dw
+        self.bias    -= learning_rate * dL_db
